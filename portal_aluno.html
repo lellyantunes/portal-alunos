@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Portal de Consulta — Alunos</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #111318;
+      --border:    #1e2230;
+      --accent:    #4f7cff;
+      --accent2:   #a78bfa;
+      --success:   #34d399;
+      --warning:   #fbbf24;
+      --danger:    #f87171;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --mono:      'DM Mono', monospace;
+      --sans:      'Sora', sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID NOISE BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(79,124,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,124,255,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative; z-index: 10;
+      padding: 28px 40px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      background: rgba(10,12,16,.85);
+      backdrop-filter: blur(12px);
+    }
+    .logo-mark {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 18px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1rem; font-weight: 600; letter-spacing: .02em; }
+    header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); margin-left: auto; }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      position: relative; z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    /* ── SEARCH CARD ── */
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .search-card::after {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .search-card h2 {
+      font-size: 1.25rem; font-weight: 600; margin-bottom: 6px;
+    }
+    .search-card p {
+      font-size: .85rem; color: var(--muted); margin-bottom: 28px;
+    }
+    .search-row {
+      display: flex; gap: 12px; align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .field-wrap {
+      flex: 1; min-width: 240px;
+    }
+    .field-wrap label {
+      display: block;
+      font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: 8px;
+      font-family: var(--mono);
+    }
+    .field-wrap input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: .9rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field-wrap input::placeholder { color: var(--muted); }
+    .field-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,124,255,.15);
+    }
+    .btn-search {
+      padding: 12px 28px;
+      background: linear-gradient(135deg, var(--accent), #3b5fe0);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: .9rem; font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 8px;
+      height: 44px;
+    }
+    .btn-search:hover { opacity: .9; }
+    .btn-search:active { transform: scale(.97); }
+    .btn-search:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── CONFIG NOTICE ── */
+    .config-notice {
+      background: rgba(251,191,36,.06);
+      border: 1px solid rgba(251,191,36,.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: .82rem;
+      color: var(--warning);
+      margin-bottom: 28px;
+      font-family: var(--mono);
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .config-notice strong { color: #fde68a; }
+
+    /* ── STATE CONTAINERS ── */
+    #state-idle, #state-loading, #state-error, #state-empty, #state-result {
+      display: none;
+    }
+    #state-idle { display: block; }
+
+    .idle-hint {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .idle-hint .icon { font-size: 2.5rem; margin-bottom: 16px; opacity: .4; }
+    .idle-hint p { font-size: .9rem; }
+
+    .spinner-wrap {
+      text-align: center; padding: 60px 20px;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: rgba(248,113,113,.07);
+      border: 1px solid rgba(248,113,113,.25);
+      border-radius: 10px;
+      padding: 20px 24px;
+      color: var(--danger);
+      font-size: .88rem;
+    }
+    .empty-box {
+      text-align: center; padding: 60px 20px; color: var(--muted);
+    }
+
+    /* ── PROFILE HEADER ── */
+    .profile-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 24px; align-items: center;
+    }
+    .avatar {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid; place-items: center;
+      font-size: 1.4rem; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .profile-info h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 4px; }
+    .profile-info .meta { font-size: .82rem; color: var(--muted); font-family: var(--mono); }
+    .profile-info .meta span { margin-right: 16px; }
+    .profile-stats {
+      display: flex; gap: 28px; text-align: right;
+    }
+    .stat-item { }
+    .stat-item .val { font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+    .stat-item .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: .72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); font-family: var(--mono);
+      margin-bottom: 12px; margin-top: 32px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    thead tr { background: rgba(79,124,255,.07); }
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: .7rem; font-weight: 500;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    td {
+      padding: 13px 16px;
+      vertical-align: top;
+      font-family: var(--mono);
+      font-size: .82rem;
+    }
+    td.text-col { font-family: var(--sans); font-size: .84rem; }
+
+    /* ── BADGES ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 600; font-family: var(--sans);
+      white-space: nowrap;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-success { background: rgba(52,211,153,.12); color: var(--success); }
+    .badge-success .badge-dot { background: var(--success); }
+    .badge-warning { background: rgba(251,191,36,.12); color: var(--warning); }
+    .badge-warning .badge-dot { background: var(--warning); }
+    .badge-danger  { background: rgba(248,113,113,.12); color: var(--danger);  }
+    .badge-danger  .badge-dot { background: var(--danger);  }
+    .badge-muted   { background: rgba(107,114,128,.15); color: var(--muted);   }
+    .badge-muted   .badge-dot { background: var(--muted);   }
+    .badge-accent  { background: rgba(79,124,255,.12); color: var(--accent);   }
+    .badge-accent  .badge-dot { background: var(--accent);  }
+
+    /* ── RECURRENCE PILLS ── */
+    .charge-num {
+      display: inline-block;
+      background: rgba(167,139,250,.12);
+      color: var(--accent2);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: .75rem;
+      font-family: var(--mono);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      header { padding: 18px 20px; }
+      main { padding: 24px 14px; }
+      .search-card { padding: 24px 20px; }
+      .profile-header { grid-template-columns: 1fr; }
+      .profile-stats { justify-content: flex-start; }
+      .search-row { flex-direction: column; }
+      .btn-search { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">A</div>
+  <h1>Portal de Consulta — Alunos</h1>
+  <span id="clock"></span>
+</header>
+
+<main>
+
+  
+
+  <!-- BUSCA -->
+  <div class="search-card">
+    <h2>Consultar Aluno</h2>
+    <p>Busque pelo e-mail ou CPF cadastrado na plataforma.</p>
+    <div class="search-row">
+      <div class="field-wrap">
+        <label>E-mail ou CPF</label>
+        <input type="text" id="search-input" placeholder="aluno@email.com  ou  000.000.000-00" autocomplete="off"/>
+      </div>
+      <button class="btn-search" id="btn-search" onclick="buscar()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        Buscar
+      </button>
+    </div>
+  </div>
+
+  <!-- ESTADOS -->
+  <div id="state-idle">
+    <div class="idle-hint">
+      <div class="icon">🔍</div>
+      <p>Digite o e-mail ou CPF do aluno para ver o histórico completo.</p>
+    </div>
+  </div>
+
+  <div id="state-loading">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <p style="color:var(--muted);font-size:.88rem">Consultando BigQuery…</p>
+    </div>
+  </div>
+
+  <div id="state-error">
+    <div class="error-box" id="error-msg"></div>
+  </div>
+
+  <div id="state-empty">
+    <div class="empty-box">
+      <div style="font-size:2rem;margin-bottom:12px;opacity:.4">🕳️</div>
+      <p>Nenhum registro encontrado para esse e-mail ou CPF.</p>
+    </div>
+  </div>
+
+  <div id="state-result">
+    <!-- Perfil -->
+    <div class="profile-header" id="profile-header"></div>
+
+    <!-- Resumo financeiro -->
+    <div class="section-title">Resumo financeiro</div>
+    <div class="table-wrap" style="margin-bottom:24px">
+      <table id="tbl-resumo">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Tipo de cobrança</th>
+            <th>Parcelas pagas</th>
+            <th>Total de parcelas</th>
+            <th>Valor total (BRL)</th>
+            <th>Status atual</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-resumo"></tbody>
+      </table>
+    </div>
+
+    <!-- Histórico completo -->
+    <div class="section-title">Histórico de transações</div>
+    <div class="table-wrap">
+      <table id="tbl-historico">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Transação</th>
+            <th>Produto</th>
+            <th>Plataforma</th>
+            <th>Método</th>
+            <th>Cobrança #</th>
+            <th>Valor bruto (BRL)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-historico"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ██  CONFIGURAÇÃO — preencha antes de usar
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+  projectId : 'dashcaion',
+  dataset   : 'geral',
+  tabela    : 'vendas',
+
+  serviceAccount: {
+    "type": "service_account",
+    "project_id": "dashcaion",
+    "private_key_id": "beec8514a3c01d7b904057cca0afd38e9a10c6a9",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDIkQz1WosX6M1k\n9AyTJ40/Wt2KWw9T+R+SRhJDftdjSNJhilDC/98MOWUYndhsBE28HQEfs7VWsObD\n4uMBAxvB/JLrJBRrc9ZExMAWUmtyq4lRJtArucoOh9+cp4M96m33oaUA571NaN+Z\nejuiN7sduPvZgkwnZ3v02Z5bv9gp7QZstK6JF9/k+AgwFpUn8aatRmA9ITuARzzj\nsuQv1CtJDNDkccubBe1wxOQsB7Pi929AgPXha+N43Tn2swpCRkuoAPBSoerGsQMl\nSRtpdNUQb1pfwxaJjoxwlZ443fYdXty9PhziiNMJ63C5MVcHsTzdZyPEWeBZNhme\nhJIgnh+nAgMBAAECggEAFTW1o5qkG+6sDdF7JPKpTrpatD9l8xDkxFCxrL6Uo3S3\nfsYkPULWwRGuvbgvg1i/KbX9gO89rYG+nZd4PwqnnE+L797cY/KXhaUy1Ql5QGKg\nflr257DZi8jVnljemaUZZPcMnnhjPfTptG7HMKPpHz8JLxrG1+HrK1z6EKTMhL5S\nU3VKmiMICEOfYLiAP+OSaDiEJ9Jy8FtEkFkZJuosblg4OlMBinsOoe5X1PxKUHU/\nGBNxmO46bIfuvzSlLLv5H7cDvI+gANckfD7Ir2F1BE53A+Pi8j9hfMsFbebi4BJA\nunekyCzArUPJ0KuiGQf9a5mdU0w+hv40cwGP7x58rQKBgQD99EtwJ5Og9DlazGmm\nFjBJIS0C8Bq9J44JUy06SRpPl6VmGL8SHka6PiUb5epZ1HQ5/B+J4DJXaxzSGaeP\neFekpAK2uBmz/uU00fzSCqRx/1nPXuu/TqNVu2ovAWuhZ+IFFZFNrR6VWGdnEyO6\nkYCS1oCMFYgkpr8O8wivxBtf3QKBgQDKLqjiy53Wd+VYqLLv+njv7CQi8c19AWmV\niew0O/ef3vYuNyk+49ZyyYk0ENhlRtdLwCP4Bgh/ogbWJ9356nzennta2F8noxe4\naB8FfYqT3uw79gDiPfRBP0NAWEqcs/ftg6WF/EU3SLR6qZnkd3FYPhXIpc3Ez+Vq\nQg/cWisHUwKBgEeYE5xuy+PYdkLu1eoI31v+il4FqsQg3p4qYNnJui0uJ2b9GwDU\noEPpOTUAQG1Kw+mE9q88EXUrsVhZ+y8rUioMQueYR0bDWYLmoEvmzC2HO56GuBea\n59lHmMvfrqQ2UTX1up0XbUPVRHF+p9f1JTZAWsUjXNpYWAyy34QN2VnRAoGAF1tK\nkWC6bDNPoG1ktop1/CmIhyzt8zn9i5PyYJpo4eQtBmvC7Qv/EyWrHwOvLAwCBTM+\nNIHl63C5X3Ydk6h+Im2mjHkgjQCvVdNZehXls212Vvr1YS2NERiQ2VcZz36O7rZd\nodvh1yAkEWOUbqtJwcryU0qsOcdWlm7pTChyfhcCgYAlNli16x8c44X147Orn6Tt\nEzNhuilGi9Eo6YBYaV7GGsaO2JZVx51w0DE8h1UHN/FvvCL/C47Uzkkan5UEQRyh\ngxe0ssnfwM3RZc4H7QzXLRCfc3r1I2zHjHfqh97FW8i/Fxhybh3jLe1T3od5kXqM\nvUS0MJoRYSsmveVQmEV8zg==\n-----END PRIVATE KEY-----\n",
+    "client_email": "dashboard-bigquery@dashcaion.iam.gserviceaccount.com",
+    "token_uri": "https://oauth2.googleapis.com/token"
+  }
+};
+/* ═══════════════════════════════════════════════════════════ */
+
+
+/* ── Clock ── */
+const clock = document.getElementById('clock');
+const tick = () => { clock.textContent = new Date().toLocaleString('pt-BR'); };
+tick(); setInterval(tick, 1000);
+
+/* ── Helpers de estado ── */
+const estados = ['idle','loading','error','empty','result'];
+function setEstado(e) {
+  estados.forEach(s => document.getElementById('state-'+s).style.display = 'none');
+  document.getElementById('state-'+e).style.display = 'block';
+}
+
+/* ── Detecta se é e-mail ou CPF ── */
+function detectarTipoBusca(v) {
+  return v.includes('@') ? 'email' : 'cpf_nome';
+}
+
+/* ── JWT / OAuth2 para service account ── */
+async function getAccessToken() {
+  const sa  = CONFIG.serviceAccount;
+  const now = Math.floor(Date.now() / 1000);
+  const header  = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss  : sa.client_email,
+    scope: 'https://www.googleapis.com/auth/bigquery.readonly',
+    aud  : sa.token_uri || 'https://oauth2.googleapis.com/token',
+    exp  : now + 3600,
+    iat  : now
+  };
+
+  const b64 = (obj) => btoa(JSON.stringify(obj))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  const signingInput = b64(header) + '.' + b64(payload);
+
+  // Importa chave privada via WebCrypto
+  const pem = sa.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    'pkcs8', der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5', key,
+    new TextEncoder().encode(signingInput)
+  );
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  const jwt = signingInput + '.' + sigB64;
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  const data = await resp.json();
+  if (!data.access_token) throw new Error('Falha ao obter token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+/* ── Query BigQuery ── */
+async function queryBQ(sql) {
+  const token = await getAccessToken();
+  const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${CONFIG.projectId}/queries`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type' : 'application/json'
+    },
+    body: JSON.stringify({ query: sql, useLegacySql: false, timeoutMs: 30000 })
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message);
+
+  if (!data.rows) return [];
+  const fields = data.schema.fields.map(f => f.name);
+  return data.rows.map(row =>
+    Object.fromEntries(fields.map((f, i) => [f, row.f[i]?.v ?? null]))
+  );
+}
+
+/* ── Monta SQL ── */
+function buildSQL(valor) {
+  const tipo = detectarTipoBusca(valor);
+  const escaped = valor.replace(/'/g, "\\'");
+  const tbl = `\`${CONFIG.projectId}.${CONFIG.dataset}.${CONFIG.tabela}\``;
+
+  let whereClause;
+  if (tipo === 'email') {
+    whereClause = `LOWER(email) = LOWER('${escaped}')`;
+  } else {
+    // CPF: busca por telefone (campo mais próximo de CPF na tabela) ou nome parcial
+    const cpfLimpo = escaped.replace(/\D/g, '');
+    whereClause = `REGEXP_REPLACE(COALESCE(telefone,''), r'[^0-9]', '') = '${cpfLimpo}'`;
+  }
+
+  return `
+    SELECT
+      transacao, codigo_da_assinatura, email, nome, telefone,
+      data_simples, data_e_hora, plataforma,
+      codigo_do_produto, nome_do_produto, codigo_da_oferta,
+      pais, moeda, taxa_de_cambio,
+      valor_bruto_sem_taxas, valor_bruto_com_taxas,
+      valor_bruto_sem_taxas_brl, valor_bruto_com_taxas_brl,
+      status, metodo_de_pagamento,
+      numero_da_cobranca, quantidade_de_parcelas,
+      tipo_de_cobranca, tipo_de_aquisicao
+    FROM ${tbl}
+    WHERE ${whereClause}
+    ORDER BY data_e_hora DESC
+    LIMIT 500
+  `;
+}
+
+/* ── Badge de status ── */
+function badgeStatus(s) {
+  if (!s) return '<span class="badge badge-muted"><span class="badge-dot"></span>—</span>';
+  const st = s.toLowerCase();
+  if (['approved','pago','paid','concluido','complete','completed','active'].some(x => st.includes(x)))
+    return `<span class="badge badge-success"><span class="badge-dot"></span>${s}</span>`;
+  if (['pending','pendente','waiting','aguardando'].some(x => st.includes(x)))
+    return `<span class="badge badge-warning"><span class="badge-dot"></span>${s}</span>`;
+  if (['cancel','chargeback','refund','reembols','failed','falha','recusado'].some(x => st.includes(x)))
+    return `<span class="badge badge-danger"><span class="badge-dot"></span>${s}</span>`;
+  return `<span class="badge badge-muted"><span class="badge-dot"></span>${s}</span>`;
+}
+
+function badgeTipo(t) {
+  if (!t) return '—';
+  const lower = t.toLowerCase();
+  if (lower.includes('recorr') || lower.includes('subscri') || lower.includes('assinatura'))
+    return `<span class="badge badge-accent"><span class="badge-dot"></span>${t}</span>`;
+  return `<span class="badge badge-muted"><span class="badge-dot"></span>${t}</span>`;
+}
+
+/* ── Formata moeda ── */
+const fmtBRL = v => v != null
+  ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  : '—';
+
+/* ── Formata data ── */
+function fmtData(d, dt) {
+  const raw = dt || d;
+  if (!raw) return '—';
+  try {
+    const date = new Date(raw.includes('T') ? raw : raw + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR') +
+      (dt ? ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
+  } catch { return raw; }
+}
+
+/* ── Inicial do nome ── */
+function iniciais(nome) {
+  if (!nome) return '?';
+  return nome.trim().split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
+}
+
+/* ── Gera resumo por assinatura/produto ── */
+function gerarResumo(rows) {
+  const grupos = {};
+  rows.forEach(r => {
+    const chave = r.codigo_da_assinatura || r.codigo_do_produto || r.nome_do_produto || 'sem_grupo';
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(r);
+  });
+
+  return Object.entries(grupos).map(([, linhas]) => {
+    const pago = linhas.filter(r => {
+      const s = (r.status || '').toLowerCase();
+      return ['approved','pago','paid','complete','active'].some(x => s.includes(x));
+    });
+    const total = linhas[0].quantidade_de_parcelas || linhas.length;
+    const somaValor = pago.reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
+    return {
+      produto   : linhas[0].nome_do_produto || linhas[0].codigo_do_produto || '—',
+      tipo      : linhas[0].tipo_de_cobranca || '—',
+      pagas     : pago.length,
+      total     : total,
+      valor     : somaValor,
+      statusAtual: linhas[0].status
+    };
+  });
+}
+
+/* ── Render resultado ── */
+function renderResultado(rows) {
+  const primeiro = rows[0];
+
+  // Totais para stat-cards
+  const totalGasto = rows
+    .filter(r => ['approved','pago','paid','complete'].some(x => (r.status||'').toLowerCase().includes(x)))
+    .reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
+
+  // Perfil
+  document.getElementById('profile-header').innerHTML = `
+    <div class="avatar">${iniciais(primeiro.nome)}</div>
+    <div class="profile-info">
+      <h3>${primeiro.nome || '—'}</h3>
+      <div class="meta">
+        <span>📧 ${primeiro.email || '—'}</span>
+        <span>📱 ${primeiro.telefone || '—'}</span>
+        <span>🌍 ${primeiro.pais || '—'}</span>
+      </div>
+    </div>
+    <div class="profile-stats">
+      <div class="stat-item">
+        <div class="val">${rows.length}</div>
+        <div class="lbl">Transações</div>
+      </div>
+      <div class="stat-item">
+        <div class="val">${fmtBRL(totalGasto)}</div>
+        <div class="lbl">Total pago</div>
+      </div>
+    </div>
+  `;
+
+  // Resumo por produto/assinatura
+  const resumo = gerarResumo(rows);
+  document.getElementById('tbody-resumo').innerHTML = resumo.map(r => `
+    <tr>
+      <td class="text-col">${r.produto}</td>
+      <td>${badgeTipo(r.tipo)}</td>
+      <td style="text-align:center"><span class="charge-num">${r.pagas}</span></td>
+      <td style="text-align:center"><span class="charge-num">${r.total}</span></td>
+      <td>${fmtBRL(r.valor)}</td>
+      <td>${badgeStatus(r.statusAtual)}</td>
+    </tr>
+  `).join('');
+
+  // Histórico completo
+  document.getElementById('tbody-historico').innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtData(r.data_simples, r.data_e_hora)}</td>
+      <td style="font-size:.75rem;color:var(--muted)">${r.transacao || '—'}</td>
+      <td class="text-col">${r.nome_do_produto || r.codigo_do_produto || '—'}</td>
+      <td>${r.plataforma || '—'}</td>
+      <td>${r.metodo_de_pagamento || '—'}</td>
+      <td style="text-align:center">
+        ${r.numero_da_cobranca != null
+          ? `<span class="charge-num">${r.numero_da_cobranca}/${r.quantidade_de_parcelas || '?'}</span>`
+          : '—'}
+      </td>
+      <td>${fmtBRL(r.valor_bruto_com_taxas_brl)}</td>
+      <td>${badgeStatus(r.status)}</td>
+    </tr>
+  `).join('');
+
+  setEstado('result');
+}
+
+/* ── Buscar ── */
+async function buscar() {
+  const valor = document.getElementById('search-input').value.trim();
+  if (!valor) return;
+
+  // Valida configuração básica
+  
+
+  const btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  setEstado('loading');
+
+  try {
+    const sql  = buildSQL(valor);
+    const rows = await queryBQ(sql);
+
+    if (!rows || rows.length === 0) {
+      setEstado('empty');
+    } else {
+      renderResultado(rows);
+    }
+  } catch (err) {
+    setEstado('error');
+    document.getElementById('error-msg').innerHTML =
+      '❌ <strong>Erro ao consultar:</strong> ' + err.message;
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ── Enter para buscar ── */
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') buscar();
+});
+</script>
+</body>
+</html>
