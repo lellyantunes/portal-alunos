@@ -596,6 +596,17 @@ function iniciais(nome) {
   return nome.trim().split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
 }
 
+/* ── Verifica se status é pago/aprovado ── */
+function isStatusPago(s) {
+  if (!s) return false;
+  // Remove acentos manualmente para máxima compatibilidade
+  const norm = s.toLowerCase()
+    .replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e')
+    .replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o')
+    .replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
+  return ['approved','aprovad','pago','paid','complete','completed','active','concluido'].some(x => norm.includes(x));
+}
+
 /* ── Gera resumo por assinatura/produto ── */
 function gerarResumo(rows) {
   const grupos = {};
@@ -606,11 +617,7 @@ function gerarResumo(rows) {
   });
 
   return Object.entries(grupos).map(([, linhas]) => {
-    const pago = linhas.filter(r => {
-      const s = (r.status || '').toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return ['approved','pago','paid','complete','active','aprovad','concluido'].some(x => s.includes(x));
-    });
+    const pago = linhas.filter(r => isStatusPago(r.status));
     const total = linhas[0].quantidade_de_parcelas || linhas.length;
     const somaValor = pago.reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
     const referencia = pago.length ? pago : linhas;
@@ -633,10 +640,7 @@ function renderResultado(rows) {
 
   // Totais para stat-cards
   const totalGasto = rows
-    .filter(r => {
-      const s = (r.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      return ['approved','pago','paid','complete','aprovad','concluido'].some(x => s.includes(x));
-    })
+    .filter(r => isStatusPago(r.status))
     .reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
 
   // Perfil
