@@ -377,9 +377,10 @@
           <tr>
             <th>Produto</th>
             <th>Tipo de cobrança</th>
+            <th>Valor do produto</th>
             <th>Parcelas pagas</th>
             <th>Total de parcelas</th>
-            <th>Valor total (BRL)</th>
+            <th>Total pago (BRL)</th>
             <th>Status atual</th>
           </tr>
         </thead>
@@ -606,18 +607,22 @@ function gerarResumo(rows) {
 
   return Object.entries(grupos).map(([, linhas]) => {
     const pago = linhas.filter(r => {
-      const s = (r.status || '').toLowerCase();
-      return ['approved','pago','paid','complete','active'].some(x => s.includes(x));
+      const s = (r.status || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return ['approved','pago','paid','complete','active','aprovad','concluido'].some(x => s.includes(x));
     });
     const total = linhas[0].quantidade_de_parcelas || linhas.length;
     const somaValor = pago.reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
+    const referencia = pago.length ? pago : linhas;
+    const valorProduto = Math.max(...referencia.map(r => Number(r.valor_bruto_com_taxas_brl) || 0));
     return {
-      produto   : linhas[0].nome_do_produto || linhas[0].codigo_do_produto || '—',
-      tipo      : linhas[0].tipo_de_cobranca || '—',
-      pagas     : pago.length,
-      total     : total,
-      valor     : somaValor,
-      statusAtual: linhas[0].status
+      produto     : linhas[0].nome_do_produto || linhas[0].codigo_do_produto || '—',
+      tipo        : linhas[0].tipo_de_cobranca || '—',
+      pagas       : pago.length,
+      total       : total,
+      valorProduto: valorProduto,
+      valor       : somaValor,
+      statusAtual : linhas[0].status
     };
   });
 }
@@ -628,7 +633,10 @@ function renderResultado(rows) {
 
   // Totais para stat-cards
   const totalGasto = rows
-    .filter(r => ['approved','pago','paid','complete'].some(x => (r.status||'').toLowerCase().includes(x)))
+    .filter(r => {
+      const s = (r.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return ['approved','pago','paid','complete','aprovad','concluido'].some(x => s.includes(x));
+    })
     .reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
 
   // Perfil
@@ -660,6 +668,7 @@ function renderResultado(rows) {
     <tr>
       <td class="text-col">${r.produto}</td>
       <td>${badgeTipo(r.tipo)}</td>
+      <td>${fmtBRL(r.valorProduto)}</td>
       <td style="text-align:center"><span class="charge-num">${r.pagas}</span></td>
       <td style="text-align:center"><span class="charge-num">${r.total}</span></td>
       <td>${fmtBRL(r.valor)}</td>
