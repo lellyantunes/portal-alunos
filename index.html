@@ -377,7 +377,7 @@
           <tr>
             <th>Produto</th>
             <th>Tipo de cobrança</th>
-            <th>Valor do produto</th>
+            <th>Valor por parcela</th>
             <th>Parcelas pagas</th>
             <th>Total de parcelas</th>
             <th>Total pago (BRL)</th>
@@ -617,17 +617,23 @@ function gerarResumo(rows) {
   });
 
   return Object.entries(grupos).map(([, linhas]) => {
-    const pago = linhas.filter(r => isStatusPago(r.status));
-    const total = linhas[0].quantidade_de_parcelas || linhas.length;
-    const somaValor = pago.reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
-    const referencia = pago.length ? pago : linhas;
-    const valorProduto = Math.max(...referencia.map(r => Number(r.valor_bruto_com_taxas_brl) || 0));
+    // Cada linha = uma cobrança/parcela. Aprovadas = pagas.
+    const pagas = linhas.filter(r => isStatusPago(r.status));
+    // Total de parcelas: pega o maior numero_da_cobranca ou quantidade_de_parcelas declarada
+    const maxNumCobranca = Math.max(...linhas.map(r => Number(r.numero_da_cobranca) || 0));
+    const qtdDeclarada   = Number(linhas[0].quantidade_de_parcelas) || 0;
+    const total = Math.max(maxNumCobranca, qtdDeclarada, linhas.length);
+    // Soma apenas as parcelas aprovadas
+    const somaValor = pagas.reduce((acc, r) => acc + (Number(r.valor_bruto_com_taxas_brl) || 0), 0);
+    // Valor unitário = valor de uma parcela aprovada (ou qualquer linha)
+    const refLinha = pagas.length ? pagas[0] : linhas[0];
+    const valorParcela = Number(refLinha.valor_bruto_com_taxas_brl) || 0;
     return {
       produto     : linhas[0].nome_do_produto || linhas[0].codigo_do_produto || '—',
       tipo        : linhas[0].tipo_de_cobranca || '—',
-      pagas       : pago.length,
+      pagas       : pagas.length,
       total       : total,
-      valorProduto: valorProduto,
+      valorProduto: valorParcela,
       valor       : somaValor,
       statusAtual : linhas[0].status
     };
